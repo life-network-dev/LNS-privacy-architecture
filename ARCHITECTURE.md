@@ -1,30 +1,30 @@
 # System Architecture & Anonymization Design
 
-## 1. 데이터 흐름도 (Data Lifecycle)
+## 1. Data Lifecycle
 
-1.  **User App:** 건강 데이터를 생성하고, Enclave 전용 공개키로 데이터를 암호화합니다.
-2.  **App Server (Bridge):** 암호화된 데이터를 수신하여 Enclave 내부로 전달합니다. (서버 관리자는 복호화 불가)
-3.  **Nitro Enclave (TEE):**
-    * 데이터 복호화 (격리된 메모리 내에서 수행)
-    * **익명화 알고리즘 적용** (개인 식별 정보 제거)
-    * 보상 지급 조건(Abuse 필터링) 검증
-4.  **Output:** 익명화된 통계 데이터 및 보상 지급 확정 신호(Signal)만 외부로 반환합니다.
+1. **User App:** Generates health data and encrypts it using an Enclave-specific public key.
+2. **App Server (Bridge):** Receives the encrypted data and passes it to the Enclave. (The server administrator cannot decrypt the data.)
+3. **Nitro Enclave (TEE):**
+    * **Data Decryption:** Performed within isolated memory.
+    * **Anonymization Algorithm:** Application of logic to remove Personally Identifiable Information (PII).
+    * **Verification:** Validates reward distribution conditions and performs abuse filtering.
+4. **Output:** Returns only the anonymized statistical data and the reward confirmation signal to the external environment.
 
-## 2. 익명화 로직 (Anonymization Algorithm)
+## 2. Anonymization Logic
 
-본 엔진은 아래의 단계적 익명화 기법을 사용하여 데이터 재식별 위험을 방지합니다.
+The engine employs the following step-by-step anonymization techniques to prevent the risk of data re-identification.
 
-### A. 식별자 비식별화 (De-identification)
-* User ID, Device ID 등 직접 식별자는 **Salted-Hash** 처리 후 고유 토큰으로 대체됩니다.
-* Salt 값은 Enclave 외부로 유출되지 않도록 엄격히 관리됩니다.
+### A. De-identification
+* Direct identifiers such as User ID and Device ID are replaced with unique tokens after undergoing **Salted-Hash** processing.
+* Salt values are strictly managed to ensure they are never leaked outside the Enclave.
 
-### B. 데이터 버킷팅 (Data Binning/Bucketing)
-* 정밀한 수치 데이터(예: 103)를 범위형 데이터(예: 100~105)로 변환하여 $k$-anonymity를 확보합니다.
-* 정밀 위치 정보(GPS)는 특정 구역 단위(Grid)로 마스킹 처리합니다.
+### B. Data Binning/Bucketing
+* Precise numerical data (e.g., 103) is converted into range-based data (e.g., 100~105) to ensure **$k$-anonymity**.
+* Precise location information (GPS) is masked and processed into specific grid units.
 
-### C. 데이터 파기 정책
-* 보상 계산에 사용된 원본 로우 데이터(Raw Data)는 연산 직후 Enclave 메모리에서 즉시 파기되며, 영구 저장소(DB)에는 오직 익명화된 결과값만 기록됩니다.
+### C. Data Destruction Policy
+* Original raw data used for reward calculations is immediately purged from the Enclave memory after computation. Only anonymized results are recorded in the permanent storage (DB).
 
-## 3. 위변조 및 어뷰징 방지 (Anti-Abuse)
-* **HMAC Signature:** 모든 데이터 요청에 대해 앱-서버 간 무결성 검증을 수행합니다.
-* **Logic-based Filtering:** 비정상적 속도 변화나 중복 기기 신호를 Enclave 내부 로직으로 필터링하여 보상 어뷰징을 차단합니다.
+## 3. Anti-Abuse
+* **HMAC Signature:** Performs integrity verification for all data requests between the app and the server.
+* **Logic-based Filtering:** Blocks reward abuse by filtering out abnormal speed changes or duplicate device signals using internal Enclave logic.
